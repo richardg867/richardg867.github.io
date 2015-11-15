@@ -8,14 +8,14 @@
 		</style>
 		<script type="text/javascript">
 			function pageUrl(wiki, page) {
-				return wiki + '/index.php?title=' + escape(page.replace(/ /g, '_'));
+				return wiki + '/index.php?title=' + encodeURIComponent(page.replace(/ /g, '_'));
 			}
 			
 			function loadPage(wiki, page) {
 				console.log('Loading page: ' + page);
 					
 				sc = document.createElement('script');
-				sc.setAttribute('src', wiki + '/api.php?action=parse&format=json&callback=window.chain&redirects=1&page=' + escape(page.replace(/ /g, '_')).replace(/\+/g, '%2B'));
+				sc.setAttribute('src', wiki + '/api.php?action=parse&format=json&callback=window.chain&redirects=1&page=' + encodeURIComponent(page.replace(/ /g, '_')));
 				sc.setAttribute('type', 'text/javascript');
 				document.head.appendChild(sc);
 			}
