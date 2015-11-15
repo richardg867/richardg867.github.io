@@ -1,0 +1,155 @@
+<html>
+	<head>
+		<title>Wikipedia Chain</title>
+		<style type="text/css">
+			body {
+				font-family: sans-serif;
+			}
+		</style>
+		<script type="text/javascript">
+			function pageUrl(wiki, page) {
+				return wiki + '/index.php?title=' + escape(page.replace(/ /g, '_'));
+			}
+			
+			function loadPage(wiki, page) {
+				console.log('Loading page: ' + page);
+					
+				sc = document.createElement('script');
+				sc.setAttribute('src', wiki + '/api.php?action=parse&format=json&callback=window.chain&redirects=1&page=' + page.replace(/ /g, '_').replace(/\+/g, '%2B'));
+				sc.setAttribute('type', 'text/javascript');
+				document.head.appendChild(sc);
+			}
+
+			function loadRandom(wiki) {
+				console.log('Loading random page');
+				
+				sc = document.createElement('script');
+				sc.setAttribute('src', wiki + '/api.php?action=query&list=random&rnnamespace=0&format=json&callback=window.randomPage');
+				sc.setAttribute('type', 'text/javascript');
+				document.head.appendChild(sc);
+			}
+
+			function updateStatus(chainLength) {
+				statusDisplay = document.getElementById('status');
+				if (chainLength == 0) {
+					statusDisplay.style.display = 'none';
+				} else {
+					statusDisplay.style.display = 'inline';
+					statusDisplay.innerHTML = 'Pages remaining: <b>' + chainLength + '</b>';
+				}
+			}
+
+			function start() {
+				form = document.forms[0];
+				page = form[0].value;
+				window.wikiUrl = form[1].value;
+				window.chainLength = parseInt(form[2].value) - 1;
+				
+				window.seenPages = Array();
+				updateStatus(window.chainLength);
+				document.getElementById('chainStart').innerHTML = '<a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a><span id="showChain"> &gt; <a href="#" onClick="document.getElementById(\'showChain\').style.display = \'none\'; document.getElementById(\'chainMiddle\').style.display = \'inline\';">[show]</a></span>';
+				chainMiddle = document.getElementById('chainMiddle');
+				chainMiddle.style.display = 'none';
+				chainMiddle.innerHTML = '';
+				document.getElementById('chainEnd').innerHTML = '';
+				
+				loadPage(window.wikiUrl, page);
+			}
+			
+			function cleanScripts() {
+				// based on http://stackoverflow.com/questions/9390445/remove-appended-script-javascript
+				scripts = document.getElementsByTagName('script');
+				for (i = scripts.length; i >= 0; i--) {
+					if (scripts[i] && scripts[i].getAttribute('src') != null) {
+						scripts[i].parentNode.removeChild(scripts[i]);
+					}
+				}
+			}
+
+			function chain(json) {
+				cleanScripts();
+				
+				if (!('parse' in json)) {
+					console.log('Bad data!');
+					console.log(json);
+					
+					if ('error' in json) {
+						if (json['error']['code'] == 'missingtitle') {
+							alert('Page not found');
+						} else {
+							alert('API error: ' + json['error']['info']);
+						}
+					} else {
+						alert('API returned bad data for a page');
+					}
+					return;
+				}
+				links = json['parse']['links'];
+				
+				page = null;
+				
+				candidates = Array();
+				for (link in links) {
+					pageEntry = links[link];
+					if ('exists' in pageEntry && pageEntry['*'].indexOf(':') == -1 && window.seenPages.indexOf(pageEntry['*']) == -1) {
+						candidates.push(pageEntry);
+					}
+				}
+				if (candidates.length == 0) {
+					loadRandom(window.wikiUrl);
+					return;
+				}
+				
+				page = candidates[Math.floor(Math.random() * candidates.length)]['*'];
+				window.seenPages.push(page);
+				
+				isEnd = --window.chainLength == 0;
+				updateStatus(window.chainLength);
+				
+				document.getElementById(isEnd ? 'chainEnd' : 'chainMiddle').innerHTML += ' &gt; <a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a>';
+				
+				if (isEnd) return;
+				
+				loadPage(window.wikiUrl, page);
+			}
+			window.chain = chain;
+
+			function randomPage(json) {
+				cleanScripts();
+				
+				if (!('query' in json) || json['query']['random'].length == 0) {
+					alert('Tried requesting random page, didn\'t get any');
+					return;
+				}
+				
+				page = json['query']['random'][0]['title'];
+				document.getElementById('chainMiddle').innerHTML += ' &gt; [chain died, random page] <a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a>';
+				
+				isEnd = --window.chainLength == 0;
+				updateStatus(window.chainLength);
+				if (isEnd) return;
+				
+				loadPage(window.wikiUrl, page);
+			}
+			window.randomPage = randomPage;
+		</script>
+	</head>
+	<body>
+		<h1>Wikipedia Chain</h1>
+		<p>This experiment loads the specified Wikipedia (or other wiki) page and clicks on random links up until the chain length. Inspired by <a href="https://xkcd.com/214/">xkcd's The Problem With Wikipedia</a>.</p>
+		<form onSubmit="start()" action="#">
+			Page: <input type="text" value="Main Page"><br>
+			Wiki: <input type="text" value="http://en.wikipedia.org/w" size="30"> (must contain MediaWiki api.php)<br>
+			Chain length: <input type="number" min="3" value="15" style="width: 50px;"><br>
+			<input type="submit" value="Start">
+		</form>
+		<p>
+			<span id="chainStart"></span>
+			<span id="chainMiddle" style="display: none;"></span>
+			<span id="chainEnd"></span>
+		</p>
+		<p>
+			<span id="status" style="display: none;"></span>
+		</p>
+	</body>
+</html>
