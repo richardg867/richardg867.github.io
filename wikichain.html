@@ -40,6 +40,14 @@
 			}
 
 			function start() {
+				if ('chainLength' in window && window.chainLength > 0) {
+					// cancel button
+					document.reload();
+					return;
+				}
+				
+				document.getElementById('submitbtn').value = 'Cancel';
+				
 				form = document.forms[0];
 				page = form[0].value;
 				window.wikiUrl = form[1].value;
@@ -47,7 +55,7 @@
 				
 				window.seenPages = Array();
 				updateStatus(window.chainLength);
-				document.getElementById('chainStart').innerHTML = '<a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a><span id="showChain"> &gt; <a href="javascript:;" onClick="document.getElementById(\'showChain\').style.display = \'none\'; document.getElementById(\'chainMiddle\').style.display = \'inline\';">[show]</a></span>';
+				document.getElementById('chainStart').innerHTML = '<a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a><span id="showChain"> &gt; <a href="javascript:;" onClick="document.getElementById(\'showChain\').style.display = \'none\'; document.getElementById(\'chainMiddle\').style.display = \'inline\'; return false;">[show]</a></span>';
 				chainMiddle = document.getElementById('chainMiddle');
 				chainMiddle.style.display = 'none';
 				chainMiddle.innerHTML = '';
@@ -108,7 +116,10 @@
 				
 				document.getElementById(isEnd ? 'chainEnd' : 'chainMiddle').innerHTML += ' &gt; <a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a>';
 				
-				if (isEnd) return;
+				if (isEnd) {
+					document.getElementById('submitbtn').value = 'Start';
+					return;
+				}
 				
 				loadPage(window.wikiUrl, page);
 			}
@@ -137,11 +148,11 @@
 	<body>
 		<h1>Wikipedia Chain</h1>
 		<p>This experiment loads the specified Wikipedia (or other wiki) page and clicks on random links up until the chain length. Inspired by <a href="https://xkcd.com/214/">xkcd's The Problem With Wikipedia</a>.</p>
-		<form onSubmit="start()" action="javascript:;">
+		<form onSubmit="start(); return false;">
 			Page: <input type="text" value="Main Page"><br>
 			Wiki: <input type="text" value="http://en.wikipedia.org/w" size="30"> (must contain MediaWiki api.php)<br>
 			Chain length: <input type="number" min="3" value="15" style="width: 50px;"><br>
-			<input type="submit" value="Start">
+			<input id="submitbtn" type="submit" value="Start">
 		</form>
 		<p>
 			<span id="chainStart"></span>
