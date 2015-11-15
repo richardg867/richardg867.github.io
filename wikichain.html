@@ -15,7 +15,7 @@
 				console.log('Loading page: ' + page);
 					
 				sc = document.createElement('script');
-				sc.setAttribute('src', wiki + '/api.php?action=parse&format=json&callback=window.chain&redirects=1&page=' + page.replace(/ /g, '_').replace(/\+/g, '%2B'));
+				sc.setAttribute('src', wiki + '/api.php?action=parse&format=json&callback=window.chain&redirects=1&page=' + escape(page.replace(/ /g, '_')).replace(/\+/g, '%2B'));
 				sc.setAttribute('type', 'text/javascript');
 				document.head.appendChild(sc);
 			}
