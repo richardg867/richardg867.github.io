@@ -84,7 +84,13 @@
 					
 					if ('error' in json) {
 						if (json['error']['code'] == 'missingtitle') {
-							alert('Page not found');
+							if (document.forms[0][2].value == chainLength+1) {
+								//Check if it's the starting page that is the one not found
+								alert('Start page not found');
+							} else {
+								loadRandom(window.wikiUrl);
+								return;
+							}
 						} else {
 							alert('API error: ' + json['error']['info']);
 						}
