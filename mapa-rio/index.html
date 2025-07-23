@@ -1,0 +1,183 @@
+<html>
+	<head>
+		<title>Mapa Sistema RIO</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+		<style>
+			body {
+				margin: 0;
+			}
+			#map {
+				width: 100%;
+				height: 100%;
+			}
+			#extension {
+				display: none;
+			}
+			form {
+				margin: 0;
+			}
+			#linhas {
+				display: none;
+				margin-top: 0.5em;
+				font-size: small;
+				line-height: 2em;
+			}
+			#linhas a {
+				color: #ff0000;
+				font-weight: bold;
+				text-decoration: none;
+			}
+			.grayscale {
+				filter: grayscale(1);
+			}
+			.leaflet-popup-content > p {
+				margin: 0.75em 0;
+			}
+			.pulled::before {
+				color: #ff0000;
+				font-weight: bold;
+				content: "Devolvida pelo acordo judicial";
+			}
+		</style>
+		<script>
+			var map, polylines = {};
+			const polylineColor = '#0000ff';
+			const polylineColorHilit = '#ffff00';
+			window.addEventListener('load', () => {
+				const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+					'maxZoom': 19,
+					'attribution': '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+				});
+				const lotes = L.imageOverlay('/mapa-rio/lotes.png', [[-22.775, -43.797], [-23.077, -43.149]], {
+					'opacity': 0.5
+				});
+				const lotesE = L.imageOverlay('/mapa-rio/lotes-e.png', [[-22.772, -43.797], [-23.079, -43.149]], {
+					'opacity': 0.5
+				});
+				const lotesL = L.imageOverlay('/mapa-rio/lotes-l.png', [[-22.772, -43.797], [-23.079, -43.149]], {
+					'opacity': 0.5
+				});
+				map = L.map('map', {
+					'layers': [osm, lotes]
+				}).fitBounds(lotes.getBounds());
+				const ExtendedLayers = L.Control.Layers.extend({
+					'onAdd': function(map) {
+						const container = L.Control.Layers.prototype.onAdd.call(this, map);
+						const moveFrom = document.querySelector('#extension');
+						const moveData = moveFrom.innerHTML;
+						moveFrom.innerHTML = '';
+						container.querySelector('section').insertAdjacentHTML('beforeend', moveData);
+						return container;
+					}
+				});
+				const layerControl = new ExtendedLayers({}, {
+					'Áreas': lotes,
+					'Lotes Estruturais': lotesE,
+					'Lotes Locais': lotesL
+				}, {
+					'collapsed': false
+				}).addTo(map);
+
+				window.fetch('/mapa-rio/garagens.json')
+					.then((response) => response.json())
+					.then((data) => {
+						var layers = [];
+						for (var area in data) {
+							const garagem = data[area];
+							const marker = L.marker(L.PolyUtil.polygonCenter(garagem['c'], L.CRS.EPSG3857));
+
+							var popup = garagem['m'].map((metadata) => '<p><b>' + metadata['k'] + ':</b><br />' + metadata['v'] + '</p>').join('');
+							if (garagem['p']) {
+								popup = '<p class="pulled"></p>' + popup;
+								marker.on('add', function() {
+									this._icon.classList.add('grayscale');
+								});
+							}
+							layers.push(marker.bindPopup(popup));
+
+							marker.polygon = L.polygon(garagem['c'], {
+								'color': polylineColor,
+								'interactive': false
+							});
+							marker.on('popupopen', function() {
+								this.polygon.addTo(map);
+							});
+							marker.on('popupclose', function() {
+								this.polygon.remove();
+							});
+						}
+						layerControl.addOverlay(L.layerGroup(layers), 'Garagens');
+					});
+			});
+			function exibir() {
+				const inputBox = document.querySelector('#linha');
+				const servico = (inputBox.value.toUpperCase().match(/[0-9A-Z]+/) || [])[0];
+				inputBox.value = '';
+				if (!servico || polylines[servico])
+					return false;
+				polylines[servico] = [];
+				window.fetch('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outSR=4326&f=pjson')
+					.then((response) => response.json())
+					.then((data) => {
+						if (data['features'].length) {
+							data['features'].forEach((feature) => {
+								feature['geometry']['paths'][0].forEach((lnglat) => lnglat.reverse());
+								polylines[servico].push(L.polyline(feature['geometry']['paths'][0], {'color': polylineColor}).bindPopup(servico).addTo(map))
+							});
+							const container = document.querySelector('#linhas');
+							container.style.display = 'block';
+							container.innerHTML += '<div id="linha-' + servico + '" onmouseover="realce(this, true)" onmouseout="realce(this, false)"><a href="#" onclick="return ocultar(this)">\u274C</a> ' + servico + '</div>';
+						} else {
+							alert('Linha ' + servico + ' não existe na base de dados do GPS');
+						}
+					})
+					.catch((err) => {
+						console.error(err);
+						alert('Erro ao carregar linha ' + servico);
+					});
+				return false;
+			}
+			function ocultar(a) {
+				const node = a.parentNode;
+				const servico = node.id.slice(6);
+				polylines[servico].forEach((polyline) => polyline.remove());
+				delete polylines[servico];
+				const container = node.parentNode;
+				container.removeChild(node);
+				if (!container.firstElementChild)
+					container.style.display = 'none';
+				return false;
+			}
+			function realce(node, state) {
+				const servico = node.id.slice(6);
+				if (state) {
+					node.style.background = polylineColorHilit;
+					polylines[servico].forEach((polyline) => {
+						polyline.setStyle({'color': polylineColorHilit});
+						polyline.bringToFront();
+					});
+				} else {
+					node.style.background = '';
+					polylines[servico].forEach((polyline) => polyline.setStyle({'color': polylineColor}));
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div id="map"></div>
+		<div id="extension">
+			<div class="leaflet-control-layers-separator"></div>
+			<div class="leaflet-control-layers-overlays">
+				<form onsubmit="return exibir()">
+					<label for="linha">Linha:</label>
+					<input type="text" id="linha" size="4" autofocus />
+					<button type="submit">Exibir</button>
+					<div id="linhas"></div>
+				</form>
+			</div>
+		</div>
+	</body>
+</html>
