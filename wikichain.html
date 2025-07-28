@@ -102,7 +102,7 @@
 				var candidates = [];
 				for (const link in links) {
 					const pageEntry = links[link];
-					if (pageEntry['exists'] && (pageEntry['*'].indexOf(':') == -1) && (window.seenPages.indexOf(pageEntry['*']) == -1))
+					if (('exists' in pageEntry) && (pageEntry['*'].indexOf(':') == -1) && (window.seenPages.indexOf(pageEntry['*']) == -1))
 						candidates.push(pageEntry);
 				}
 				if (!candidates.length)
