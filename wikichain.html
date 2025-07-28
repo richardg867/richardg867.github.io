@@ -98,9 +98,14 @@
 
 					if (json['error']) {
 						if (json['error']['code'] == 'missingtitle') {
-							if (document.forms[0][2].value == (chainLength + 1)) {
+							if (parseInt(document.getElementById('length').value) == (chainLength + 1)) {
 								/* Check if it's the starting page that is the one not found. */
 								alert('Start page not found');
+								document.getElementById('submitbtn').value = 'Start';
+								document.getElementById('chainStart').innerHTML = '';
+								document.getElementById('chainMiddle').innerHTML = '';
+								document.getElementById('chainEnd').innerHTML = '';
+								updateStatus(window.chainLength = 0);
 							} else {
 								loadRandom(window.wikiUrl);
 								return;
