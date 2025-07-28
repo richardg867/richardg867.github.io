@@ -85,7 +85,7 @@
 					if ('error' in json) {
 						if (json['error']['code'] == 'missingtitle') {
 							if (document.forms[0][2].value == chainLength+1) {
-								//Check if it's the starting page that is the one not found
+								// Check if it's the starting page that is the one not found.
 								alert('Start page not found');
 							} else {
 								loadRandom(window.wikiUrl);
@@ -158,7 +158,7 @@
 		<p><b>NEW:</b> <a rel="me" href="https://mastodon.xyz/@wikipediachain">Wikipedia Chain bot on the Fediverse</a></p>
 		<form onSubmit="start(); return false;">
 			Page: <input type="text" value="Main Page"><br>
-			Wiki: <input type="text" value="http://en.wikipedia.org/w" size="30"> (must contain MediaWiki api.php)<br>
+			Wiki: <input type="text" value="https://en.wikipedia.org/w" size="30"> (must contain MediaWiki api.php)<br>
 			Chain length: <input type="number" min="3" value="15" style="width: 50px;"><br>
 			<input id="submitbtn" type="submit" value="Start">
 		</form>
