@@ -1,7 +1,7 @@
 <html>
 	<head>
 		<title>Wikipedia Chain</title>
-		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<style type="text/css">
 			body {
 				font-family: sans-serif;
@@ -15,23 +15,21 @@
 			function loadPage(wiki, page) {
 				console.log('Loading page: ' + page);
 					
-				sc = document.createElement('script');
+				var sc = document.createElement('script');
 				sc.setAttribute('src', wiki + '/api.php?action=parse&format=json&callback=window.chain&redirects=1&page=' + encodeURIComponent(page.replace(/ /g, '_')));
-				sc.setAttribute('type', 'text/javascript');
 				document.head.appendChild(sc);
 			}
 
 			function loadRandom(wiki) {
 				console.log('Loading random page');
 				
-				sc = document.createElement('script');
+				var sc = document.createElement('script');
 				sc.setAttribute('src', wiki + '/api.php?action=query&list=random&rnnamespace=0&format=json&callback=window.randomPage');
-				sc.setAttribute('type', 'text/javascript');
 				document.head.appendChild(sc);
 			}
 
 			function updateStatus(chainLength) {
-				statusDisplay = document.getElementById('status');
+				var statusDisplay = document.getElementById('status');
 				if (chainLength == 0) {
 					statusDisplay.style.display = 'none';
 				} else {
@@ -41,51 +39,51 @@
 			}
 
 			function start() {
-				if ('chainLength' in window && window.chainLength > 0) {
-					// cancel button
+				if (window.chainLength && (window.chainLength > 0)) {
+					/* Cancel button. */
 					document.reload();
-					return;
+					return false;
 				}
 				
 				document.getElementById('submitbtn').value = 'Cancel';
 				
-				form = document.forms[0];
-				page = form[0].value;
+				var form = document.forms[0];
+				var page = form[0].value;
 				window.wikiUrl = form[1].value;
 				window.chainLength = parseInt(form[2].value) - 1;
 				
-				window.seenPages = Array();
+				window.seenPages = [];
 				updateStatus(window.chainLength);
 				document.getElementById('chainStart').innerHTML = '<a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a><span id="showChain"> &gt; <a href="javascript:;" onClick="document.getElementById(\'showChain\').style.display = \'none\'; document.getElementById(\'chainMiddle\').style.display = \'inline\'; return false;">[show]</a></span>';
-				chainMiddle = document.getElementById('chainMiddle');
+				var chainMiddle = document.getElementById('chainMiddle');
 				chainMiddle.style.display = 'none';
 				chainMiddle.innerHTML = '';
 				document.getElementById('chainEnd').innerHTML = '';
 				
 				loadPage(window.wikiUrl, page);
+				return false;
 			}
 			
 			function cleanScripts() {
-				// based on http://stackoverflow.com/questions/9390445/remove-appended-script-javascript
-				scripts = document.getElementsByTagName('script');
-				for (i = scripts.length; i >= 0; i--) {
-					if (scripts[i] && scripts[i].getAttribute('src') != null) {
+				/* Based on: http://stackoverflow.com/questions/9390445/remove-appended-script-javascript */
+				const scripts = document.getElementsByTagName('script');
+				for (const i = scripts.length; i >= 0; i--) {
+					if (scripts[i] && scripts[i].getAttribute('src') != null)
 						scripts[i].parentNode.removeChild(scripts[i]);
-					}
 				}
 			}
 
 			function chain(json) {
 				cleanScripts();
 				
-				if (!('parse' in json)) {
+				if (!json['parse']) {
 					console.log('Bad data!');
 					console.log(json);
 					
-					if ('error' in json) {
+					if (json['error']) {
 						if (json['error']['code'] == 'missingtitle') {
 							if (document.forms[0][2].value == chainLength+1) {
-								// Check if it's the starting page that is the one not found.
+								/* Check if it's the starting page that is the one not found. */
 								alert('Start page not found');
 							} else {
 								loadRandom(window.wikiUrl);
@@ -99,26 +97,21 @@
 					}
 					return;
 				}
-				links = json['parse']['links'];
-				
-				page = null;
-				
-				candidates = Array();
-				for (link in links) {
-					pageEntry = links[link];
-					if ('exists' in pageEntry && pageEntry['*'].indexOf(':') == -1 && window.seenPages.indexOf(pageEntry['*']) == -1) {
+
+				const links = json['parse']['links'];
+				var candidates = [];
+				for (const link in links) {
+					const pageEntry = links[link];
+					if (pageEntry['exists'] && (pageEntry['*'].indexOf(':') == -1) && (window.seenPages.indexOf(pageEntry['*']) == -1))
 						candidates.push(pageEntry);
-					}
 				}
-				if (candidates.length == 0) {
-					loadRandom(window.wikiUrl);
-					return;
-				}
+				if (!candidates.length)
+					return loadRandom(window.wikiUrl);
 				
-				page = candidates[Math.floor(Math.random() * candidates.length)]['*'];
+				const page = candidates[Math.floor(Math.random() * candidates.length)]['*'];
 				window.seenPages.push(page);
 				
-				isEnd = --window.chainLength == 0;
+				const isEnd = --window.chainLength == 0;
 				updateStatus(window.chainLength);
 				
 				document.getElementById(isEnd ? 'chainEnd' : 'chainMiddle').innerHTML += ' &gt; <a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a>';
@@ -135,17 +128,16 @@
 			function randomPage(json) {
 				cleanScripts();
 				
-				if (!('query' in json) || json['query']['random'].length == 0) {
-					alert('Tried requesting random page, didn\'t get any');
-					return;
-				}
+				if (!json['query'] || !json['query']['random'] || !json['query']['random'][0])
+					return alert('Tried requesting random page, didn\'t get any');
 				
 				page = json['query']['random'][0]['title'];
 				document.getElementById('chainMiddle').innerHTML += ' &gt; [chain died, random page] <a href="' + pageUrl(window.wikiUrl, page) + '">' + page + '</a>';
 				
 				isEnd = --window.chainLength == 0;
 				updateStatus(window.chainLength);
-				if (isEnd) return;
+				if (isEnd)
+					return;
 				
 				loadPage(window.wikiUrl, page);
 			}
@@ -156,11 +148,11 @@
 		<h1>Wikipedia Chain</h1>
 		<p>This experiment loads the specified Wikipedia (or other wiki) page and clicks on random links up until the chain length. Inspired by <a href="https://xkcd.com/214/">xkcd's The Problem With Wikipedia</a>.</p>
 		<p><b>NEW:</b> <a rel="me" href="https://mastodon.xyz/@wikipediachain">Wikipedia Chain bot on the Fediverse</a></p>
-		<form onSubmit="start(); return false;">
-			Page: <input type="text" value="Main Page"><br>
-			Wiki: <input type="text" value="https://en.wikipedia.org/w" size="30"> (must contain MediaWiki api.php)<br>
-			Chain length: <input type="number" min="3" value="15" style="width: 50px;"><br>
-			<input id="submitbtn" type="submit" value="Start">
+		<form onsubmit="return start()">
+			Page: <input type="text" value="Main Page" /><br />
+			Wiki: <input type="text" value="https://en.wikipedia.org/w" size="30" /> (must contain MediaWiki api.php)<br />
+			Chain length: <input type="number" min="3" value="15" style="width: 50px;" /><br />
+			<input id="submitbtn" type="submit" value="Start" />
 		</form>
 		<p>
 			<span id="chainStart"></span>
