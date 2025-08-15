@@ -109,14 +109,23 @@
 							}));
 						}
 					}, (err) => {
-						if (!err && layers.length)
-							layerControl.addOverlay(L.layerGroup(layers).on('add', () => Object.keys(polylines).forEach((servico) => polylines[servico].forEach((polyline) => polyline.bringToFront()))), name);
-						resolve();
+						if (!err && layers.length) {
+							const group = L.layerGroup(layers)
+							group.on('add', () => Object.keys(polylines).forEach((servico) => polylines[servico].forEach((polyline) => polyline.bringToFront())));
+							layerControl.addOverlay(group, name);
+							resolve(group);
+						} else {
+							resolve();
+						}
 					});
 				});
 				Promise.resolve()
 					.then(() => geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', 'area'))
-					.then(() => new Promise((resolve) => resolve(map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]))))
+					.then((group) => new Promise((resolve) => {
+						map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]);
+						group.addTo(map);
+						resolve();
+					}))
 					.then(() => geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estrutrurais', 'lote'))
 					.then(() => geoJsonOverlay('/mapa-rio/lotes-l.geojson', 'Lotes Locais', 'lote'))
 					.then(() => new Promise((resolve) => {
