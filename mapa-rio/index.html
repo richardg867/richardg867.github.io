@@ -5,6 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js" integrity="sha512-Q7HOppxoH0L2M7hreVoFCtUZimR2YaY0fBewIYzkCgmNtgOOZ5IgMNYxHgfps0qrO1ef5m7L1FeHrhXlq1I9HA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 		<style>
 			body {
 				margin: 0;
@@ -21,13 +22,19 @@
 				display: none;
 			}
 			form {
+				display: none;
 				margin: 0;
 			}
 			#linhas {
 				display: none;
 				margin-top: 0.5em;
 				font-size: small;
-				line-height: 2em;
+			}
+			#linhas div {
+				display: block;
+				margin-top: 0.25em;
+				width: 1px;
+				min-width: 100%;
 			}
 			#linhas a {
 				color: #ff0000;
@@ -60,7 +67,11 @@
 			}
 		</style>
 		<script>
-			var map, polylines = {};
+			var map;
+			var polylines = {};
+			var areas = {};
+			var lotesE = {};
+			var lotesL = {};
 			const polylineColor = '#0000ff';
 			const polylineColorHilit = '#ffff00';
 			window.addEventListener('load', () => {
@@ -85,15 +96,16 @@
 					'collapsed': false
 				}).addTo(map);
 
-				const geoJsonOverlay = (url, name, label) => new Promise((resolve) => {
+				const geoJsonOverlay = (url, name, obj, label) => new Promise((resolve) => {
 					var layers = [];
 					loadGeoJson(url, (feature) => {
 						var mergedPolyline = [];
+						var allPolylines = obj[feature['properties']['name']] = [];
 						for (const polyline of getPolylines(feature)) {
-							polyline.forEach((lnglat) => lnglat.reverse());
 							if (label)
 								mergedPolyline = mergedPolyline.concat(polyline);
-							layers.push(L.polygon(polyline, {
+							allPolylines.push(turf.polygon([polyline]));
+							layers.push(L.polygon(polyline.map((lnglat) => [lnglat[1], lnglat[0]]), {
 								'color': feature['properties']['color'],
 								'fillOpacity': 0.5,
 								'stroke': true,
@@ -101,7 +113,7 @@
 							}));
 						}
 						if (label) {
-							layers.push(L.tooltip(L.PolyUtil.polygonCenter(mergedPolyline, L.CRS.EPSG3857), {
+							layers.push(L.tooltip(L.PolyUtil.polygonCenter(mergedPolyline.map((lnglat) => [lnglat[1], lnglat[0]]), L.CRS.EPSG3857), {
 								'content': feature['properties']['name'],
 								'className': 'floating ' + label,
 								'direction': 'center',
@@ -120,14 +132,14 @@
 					});
 				});
 				Promise.resolve()
-					.then(() => geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', 'area'))
+					.then(() => geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', areas, 'area'))
 					.then((group) => new Promise((resolve) => {
 						map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]);
 						group.addTo(map);
 						resolve();
 					}))
-					.then(() => geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estrutrurais', 'lote'))
-					.then(() => geoJsonOverlay('/mapa-rio/lotes-l.geojson', 'Lotes Locais', 'lote'))
+					.then(() => geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estrutrurais', lotesE, 'lote'))
+					.then(() => geoJsonOverlay('/mapa-rio/lotes-l.geojson', 'Lotes Locais', lotesL, 'lote'))
 					.then(() => new Promise((resolve) => {
 						var layers = [];
 						loadGeoJson('/mapa-rio/garagens.geojson', (feature) => {
@@ -155,6 +167,10 @@
 						}, (err) => {
 							if (!err && layers.length)
 								layerControl.addOverlay(L.layerGroup(layers), 'Garagens');
+
+							document.querySelector('#loading').style.display = 'none';
+							document.querySelector('form').style.display = 'block';
+
 							resolve();
 						});
 					}));
@@ -187,18 +203,54 @@
 				if (!servico || polylines[servico])
 					return false;
 				polylines[servico] = [];
-				loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outSR=4326&f=pjson', (feature) => {
-					feature['geometry']['paths'][0].forEach((lnglat) => lnglat.reverse());
-					polylines[servico].push(L.polyline(feature['geometry']['paths'][0], {'color': polylineColor}).bindPopup(servico).addTo(map));
+				var circular = true;
+				var desc;
+				loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outFields=servico%2Cdirecao&outSR=4326&f=pjson', (feature) => {
+					const path = feature['geometry']['paths'][0];
+					polylines[servico].push(L.polyline(path.map((lnglat) => [lnglat[1], lnglat[0]]), {'color': polylineColor}).bindPopup(servico).addTo(map));
+
+					if (feature['attributes']['direcao']) {
+						circular = false;
+					} else {
+						const startPos = turf.point(path[0]);
+						const endPos = turf.point(path[path.length - 1]);
+						console.log(endPos);
+						var startArea, endArea;
+						for (const loteL in lotesL) {
+							for (var polyline of lotesL[loteL]) {
+								console.log(loteL, lotesL[loteL], polyline);
+								if (turf.booleanPointInPolygon(startPos, polyline))
+									startArea = loteL;
+								if (turf.booleanPointInPolygon(endPos, polyline))
+									endArea = loteL;
+							}
+						}
+						if (startArea == endArea) {
+							desc = 'Local ' + startArea;
+						} else {
+							for (const loteE in lotesE) {
+								for (var polyline of lotesE[loteE]) {
+									if (turf.booleanPointInPolygon(startPos, polyline))
+										startArea = loteE;
+									if (turf.booleanPointInPolygon(endPos, polyline))
+										endArea = loteE;
+								}
+							}
+							desc = 'Estrutural ' + startArea + ' x ' + endArea;
+						}
+					}
 				}, (err) => {
 					if (err) {
 						alert('Erro ao carregar linha ' + servico);
 					} else if (!polylines[servico].length) {
 						alert('Linha ' + servico + ' não existe na base de dados do GPS');
 					} else {
+						if (circular)
+							desc = desc.replace(/^Local /, 'Circular ');
+
 						const container = document.querySelector('#linhas');
 						container.style.display = 'block';
-						container.innerHTML += '<div id="linha-' + servico + '" onmouseover="realce(this, true)" onmouseout="realce(this, false)"><a href="#" onclick="return ocultar(this)">\u274C</a> ' + servico + '</div>';
+						container.innerHTML += '<div id="linha-' + servico + '" onmouseover="realce(this, true)" onmouseout="realce(this, false)"><a href="#" onclick="return ocultar(this)">\u274C</a> ' + servico + ' <small>' + desc + '</small></div>';
 					}
 				});
 				return false;
@@ -234,6 +286,7 @@
 		<div id="extension">
 			<div class="leaflet-control-layers-separator"></div>
 			<div class="leaflet-control-layers-overlays">
+				<div id="loading">Carregando...</div>
 				<form onsubmit="return exibir()">
 					<label for="linha">Linha:</label>
 					<input type="text" id="linha" size="4" autofocus />
