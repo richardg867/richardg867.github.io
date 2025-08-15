@@ -95,21 +95,20 @@
 				const layerControl = new ExtendedLayers({}, {}, {'moveFrom': '#extension', 'collapsed': false}).addTo(map);
 
 				var legend;
+				var legendAvoidLayers = [];
 				var legendLayers = [];
-				const refreshLegend = () => {
-					for (var layer of legendLayers) {
-						if (map.hasLayer(layer)) {
-							if (!legend)
-								legend = new ExtendedLayers({}, {}, {'position': 'bottomleft', 'moveFrom': '#legend', 'collapsed': false}).addTo(map)._container;
+				const updateLegend = () => {
+					if ((legendAvoidLayers.filter((layer) => map.hasLayer(layer)).length < 1) && (legendLayers.filter((layer) => map.hasLayer(layer)).length == 1)) {
+						if (!legend)
+							legend = new ExtendedLayers({}, {}, {'position': 'bottomleft', 'moveFrom': '#legend', 'collapsed': false}).addTo(map)._container;
+						else
 							legend.style.display = 'block';
-							return;
-						}
-					}
-					if (legend)
+					} else if (legend) {
 						legend.style.display = 'none';
+					}
 				};
-				map.on('overlayadd', refreshLegend);
-				map.on('overlayremove', refreshLegend);
+				map.on('overlayadd', updateLegend);
+				map.on('overlayremove', updateLegend);
 
 				const geoJsonOverlay = (url, name, obj, label) => new Promise((resolve) => {
 					var layers = [];
@@ -150,7 +149,7 @@
 					.then(() => geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', areas, 'area'))
 					.then((group) => new Promise((resolve) => {
 						map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]);
-						group.addTo(map);
+						legendAvoidLayers.push(group.addTo(map));
 						resolve();
 					}))
 					.then(() => geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estrutrurais', lotesE, 'lote'))
