@@ -34,6 +34,19 @@
 				font-weight: bold;
 				text-decoration: none;
 			}
+			.floating {
+				background: none;
+				border: none;
+				box-shadow: none;
+				color: #ffffff;
+				text-shadow: 0 0 4px #000000;
+			}
+			.area {
+				font-size: 48px;
+			}
+			.lote {
+				font-size: 12px;
+			}
 			.grayscale {
 				filter: grayscale(1);
 			}
@@ -55,18 +68,9 @@
 					'maxZoom': 19,
 					'attribution': '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 				});
-				const lotes = L.imageOverlay('/mapa-rio/lotes.png', [[-22.775, -43.797], [-23.077, -43.149]], {
-					'opacity': 0.5
-				});
-				const lotesE = L.imageOverlay('/mapa-rio/lotes-e.png', [[-22.772, -43.797], [-23.079, -43.149]], {
-					'opacity': 0.5
-				});
-				const lotesL = L.imageOverlay('/mapa-rio/lotes-l.png', [[-22.772, -43.797], [-23.079, -43.149]], {
-					'opacity': 0.5
-				});
 				map = L.map('map', {
-					'layers': [osm, lotes]
-				}).fitBounds(lotes.getBounds());
+					'layers': [osm]
+				});
 				const ExtendedLayers = L.Control.Layers.extend({
 					'onAdd': function(map) {
 						const container = L.Control.Layers.prototype.onAdd.call(this, map);
@@ -77,40 +81,74 @@
 						return container;
 					}
 				});
-				const layerControl = new ExtendedLayers({}, {
-					'Áreas': lotes,
-					'Lotes Estruturais': lotesE,
-					'Lotes Locais': lotesL
-				}, {
+				const layerControl = new ExtendedLayers({}, {}, {
 					'collapsed': false
 				}).addTo(map);
 
-				var layers = [];
-				loadGeoJson('/mapa-rio/garagens.geojson', (feature) => {
-					const marker = L.marker(L.PolyUtil.polygonCenter(feature['geometry']['coordinates'][0], L.CRS.EPSG3857));
-					var popup = Object.keys(feature['properties']).filter((key) => key.charAt(0) != '_').map((key) => '<p><b>' + key + ':</b><br />' + feature['properties'][key] + '</p>').join('');
-					if (feature['properties']['_pulled']) {
-						popup = '<p class="pulled"></p>' + popup;
-						marker.on('add', function() {
-							this._icon.classList.add('grayscale');
-						});
-					}
-					layers.push(marker.bindPopup(popup));
-
-					marker.polygon = L.polygon(feature['geometry']['coordinates'][0], {
-						'color': polylineColor,
-						'interactive': false
+				const geoJsonOverlay = (url, name, label) => new Promise((resolve) => {
+					var layers = [];
+					loadGeoJson(url, (feature) => {
+						var mergedPolyline = [];
+						for (const polyline of getPolylines(feature)) {
+							polyline.forEach((lnglat) => lnglat.reverse());
+							if (label)
+								mergedPolyline = mergedPolyline.concat(polyline);
+							layers.push(L.polygon(polyline, {
+								'color': feature['properties']['color'],
+								'fillOpacity': 0.5,
+								'stroke': true,
+								'interactive': false
+							}));
+						}
+						if (label) {
+							layers.push(L.tooltip(L.PolyUtil.polygonCenter(mergedPolyline, L.CRS.EPSG3857), {
+								'content': feature['properties']['name'],
+								'className': 'floating ' + label,
+								'direction': 'center',
+								'permanent': true
+							}));
+						}
+					}, (err) => {
+						if (!err && layers.length)
+							layerControl.addOverlay(L.layerGroup(layers).on('add', () => Object.keys(polylines).forEach((servico) => polylines[servico].forEach((polyline) => polyline.bringToFront()))), name);
+						resolve();
 					});
-					marker.on('popupopen', function() {
-						this.polygon.addTo(map);
-					});
-					marker.on('popupclose', function() {
-						this.polygon.remove();
-					});
-				}, (err) => {
-					if (!err && layers.length)
-						layerControl.addOverlay(L.layerGroup(layers), 'Garagens');
 				});
+				Promise.resolve()
+					.then(() => geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', 'area'))
+					.then(() => new Promise((resolve) => resolve(map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]))))
+					.then(() => geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estrutrurais', 'lote'))
+					.then(() => geoJsonOverlay('/mapa-rio/lotes-l.geojson', 'Lotes Locais', 'lote'))
+					.then(() => new Promise((resolve) => {
+						var layers = [];
+						loadGeoJson('/mapa-rio/garagens.geojson', (feature) => {
+							const polyline = getPolylines(feature)[0];
+							const marker = L.marker(L.PolyUtil.polygonCenter(polyline, L.CRS.EPSG3857));
+							var popup = Object.keys(feature['properties']).filter((key) => key.charAt(0) != '_').map((key) => '<p><b>' + key + ':</b><br />' + feature['properties'][key] + '</p>').join('');
+							if (feature['properties']['_pulled']) {
+								popup = '<p class="pulled"></p>' + popup;
+								marker.on('add', function() {
+									this._icon.classList.add('grayscale');
+								});
+							}
+							layers.push(marker.bindPopup(popup));
+
+							marker.polygon = L.polygon(polyline, {
+								'color': polylineColor,
+								'interactive': false
+							});
+							marker.on('popupopen', function() {
+								this.polygon.addTo(map);
+							});
+							marker.on('popupclose', function() {
+								this.polygon.remove();
+							});
+						}, (err) => {
+							if (!err && layers.length)
+								layerControl.addOverlay(L.layerGroup(layers), 'Garagens');
+							resolve();
+						});
+					}));
 			});
 			function loadGeoJson(url, feature, finish) {
 				window.fetch(url)
@@ -124,6 +162,14 @@
 						console.error(err);
 						finish(err);
 					});
+			}
+			function getPolylines(feature) {
+				if (feature['geometry']['type'] == 'Polygon')
+					return feature['geometry']['coordinates'];
+				else if (feature['geometry']['type'] == 'MultiPolygon')
+					return feature['geometry']['coordinates'].map((x) => x[0]);
+				else
+					return [];
 			}
 			function exibir() {
 				const inputBox = document.querySelector('#linha');
