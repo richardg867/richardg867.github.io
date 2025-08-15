@@ -18,7 +18,7 @@
 				width: 100%;
 				height: 100%;
 			}
-			#extension {
+			#extension, #legend {
 				display: none;
 			}
 			form {
@@ -85,16 +85,31 @@
 				const ExtendedLayers = L.Control.Layers.extend({
 					'onAdd': function(map) {
 						const container = L.Control.Layers.prototype.onAdd.call(this, map);
-						const moveFrom = document.querySelector('#extension');
+						const moveFrom = document.querySelector(this.options.moveFrom);
 						const moveData = moveFrom.innerHTML;
 						moveFrom.innerHTML = '';
 						container.querySelector('section').insertAdjacentHTML('beforeend', moveData);
 						return container;
 					}
 				});
-				const layerControl = new ExtendedLayers({}, {}, {
-					'collapsed': false
-				}).addTo(map);
+				const layerControl = new ExtendedLayers({}, {}, {'moveFrom': '#extension', 'collapsed': false}).addTo(map);
+
+				var legend;
+				var legendLayers = [];
+				const refreshLegend = () => {
+					for (var layer of legendLayers) {
+						if (map.hasLayer(layer)) {
+							if (!legend)
+								legend = new ExtendedLayers({}, {}, {'position': 'bottomleft', 'moveFrom': '#legend', 'collapsed': false}).addTo(map)._container;
+							legend.style.display = 'block';
+							return;
+						}
+					}
+					if (legend)
+						legend.style.display = 'none';
+				};
+				map.on('overlayadd', refreshLegend);
+				map.on('overlayremove', refreshLegend);
 
 				const geoJsonOverlay = (url, name, obj, label) => new Promise((resolve) => {
 					var layers = [];
@@ -139,7 +154,15 @@
 						resolve();
 					}))
 					.then(() => geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estrutrurais', lotesE, 'lote'))
+					.then((group) => new Promise((resolve) => {
+						legendLayers.push(group);
+						resolve();
+					}))
 					.then(() => geoJsonOverlay('/mapa-rio/lotes-l.geojson', 'Lotes Locais', lotesL, 'lote'))
+					.then((group) => new Promise((resolve) => {
+						legendLayers.push(group);
+						resolve();
+					}))
 					.then(() => new Promise((resolve) => {
 						var layers = [];
 						loadGeoJson('/mapa-rio/garagens.geojson', (feature) => {
@@ -294,6 +317,13 @@
 					<div id="linhas"></div>
 				</form>
 			</div>
+		</div>
+		<div id="legend">
+			<b style="color: #ef1c41">Fase 1</b> (04/2025 - 04/2026)<br />
+			<b style="color: #ffab18">Fase 2</b> (11/2025 - 09/2026)<br />
+			<b style="color: #94a34b">Fase 3</b> (04/2026 - 04/2027)<br />
+			<b style="color: #358dcf">Fase 4</b> (11/2026 - 11/2027)<br />
+			<b style="color: #9c9c9c">Fase final</b> (09-2027 - 08/2028)
 		</div>
 	</body>
 </html>
