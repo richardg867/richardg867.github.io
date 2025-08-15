@@ -143,7 +143,7 @@
 					.then(() => new Promise((resolve) => {
 						var layers = [];
 						loadGeoJson('/mapa-rio/garagens.geojson', (feature) => {
-							const polyline = getPolylines(feature)[0];
+							const polyline = L.GeoJSON.coordsToLatLngs(getPolylines(feature)[0]);
 							const marker = L.marker(L.PolyUtil.polygonCenter(polyline, L.CRS.EPSG3857));
 							var popup = Object.keys(feature['properties']).filter((key) => key.charAt(0) != '_').map((key) => '<p><b>' + key + ':</b><br />' + feature['properties'][key] + '</p>').join('');
 							if (feature['properties']['_pulled']) {
