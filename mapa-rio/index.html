@@ -85,37 +85,46 @@
 					'collapsed': false
 				}).addTo(map);
 
-				window.fetch('/mapa-rio/garagens.json')
+				var layers = [];
+				loadGeoJson('/mapa-rio/garagens.geojson', (feature) => {
+					const marker = L.marker(L.PolyUtil.polygonCenter(feature['geometry']['coordinates'][0], L.CRS.EPSG3857));
+					var popup = Object.keys(feature['properties']).filter((key) => key.charAt(0) != '_').map((key) => '<p><b>' + key + ':</b><br />' + feature['properties'][key] + '</p>').join('');
+					if (feature['properties']['_pulled']) {
+						popup = '<p class="pulled"></p>' + popup;
+						marker.on('add', function() {
+							this._icon.classList.add('grayscale');
+						});
+					}
+					layers.push(marker.bindPopup(popup));
+
+					marker.polygon = L.polygon(feature['geometry']['coordinates'][0], {
+						'color': polylineColor,
+						'interactive': false
+					});
+					marker.on('popupopen', function() {
+						this.polygon.addTo(map);
+					});
+					marker.on('popupclose', function() {
+						this.polygon.remove();
+					});
+				}, (err) => {
+					if (!err && layers.length)
+						layerControl.addOverlay(L.layerGroup(layers), 'Garagens');
+				});
+			});
+			function loadGeoJson(url, feature, finish) {
+				window.fetch(url)
 					.then((response) => response.json())
 					.then((data) => {
-						var layers = [];
-						for (var area in data) {
-							const garagem = data[area];
-							const marker = L.marker(L.PolyUtil.polygonCenter(garagem['c'], L.CRS.EPSG3857));
-
-							var popup = garagem['m'].map((metadata) => '<p><b>' + metadata['k'] + ':</b><br />' + metadata['v'] + '</p>').join('');
-							if (garagem['p']) {
-								popup = '<p class="pulled"></p>' + popup;
-								marker.on('add', function() {
-									this._icon.classList.add('grayscale');
-								});
-							}
-							layers.push(marker.bindPopup(popup));
-
-							marker.polygon = L.polygon(garagem['c'], {
-								'color': polylineColor,
-								'interactive': false
-							});
-							marker.on('popupopen', function() {
-								this.polygon.addTo(map);
-							});
-							marker.on('popupclose', function() {
-								this.polygon.remove();
-							});
-						}
-						layerControl.addOverlay(L.layerGroup(layers), 'Garagens');
+						if (data['features'] && data['features'].length)
+							data['features'].forEach(feature);
+						finish();
+					})
+					.catch((err) => {
+						console.error(err);
+						finish(err);
 					});
-			});
+			}
 			function exibir() {
 				const inputBox = document.querySelector('#linha');
 				const servico = (inputBox.value.toUpperCase().match(/[0-9A-Z]+/) || [])[0];
@@ -123,25 +132,20 @@
 				if (!servico || polylines[servico])
 					return false;
 				polylines[servico] = [];
-				window.fetch('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outSR=4326&f=pjson')
-					.then((response) => response.json())
-					.then((data) => {
-						if (data['features'].length) {
-							data['features'].forEach((feature) => {
-								feature['geometry']['paths'][0].forEach((lnglat) => lnglat.reverse());
-								polylines[servico].push(L.polyline(feature['geometry']['paths'][0], {'color': polylineColor}).bindPopup(servico).addTo(map))
-							});
-							const container = document.querySelector('#linhas');
-							container.style.display = 'block';
-							container.innerHTML += '<div id="linha-' + servico + '" onmouseover="realce(this, true)" onmouseout="realce(this, false)"><a href="#" onclick="return ocultar(this)">\u274C</a> ' + servico + '</div>';
-						} else {
-							alert('Linha ' + servico + ' não existe na base de dados do GPS');
-						}
-					})
-					.catch((err) => {
-						console.error(err);
+				loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outSR=4326&f=pjson', (feature) => {
+					feature['geometry']['paths'][0].forEach((lnglat) => lnglat.reverse());
+					polylines[servico].push(L.polyline(feature['geometry']['paths'][0], {'color': polylineColor}).bindPopup(servico).addTo(map));
+				}, (err) => {
+					if (err) {
 						alert('Erro ao carregar linha ' + servico);
-					});
+					} else if (!polylines[servico].length) {
+						alert('Linha ' + servico + ' não existe na base de dados do GPS');
+					} else {
+						const container = document.querySelector('#linhas');
+						container.style.display = 'block';
+						container.innerHTML += '<div id="linha-' + servico + '" onmouseover="realce(this, true)" onmouseout="realce(this, false)"><a href="#" onclick="return ocultar(this)">\u274C</a> ' + servico + '</div>';
+					}
+				});
 				return false;
 			}
 			function ocultar(a) {
