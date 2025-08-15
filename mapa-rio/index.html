@@ -105,7 +105,7 @@
 							if (label)
 								mergedPolyline = mergedPolyline.concat(polyline);
 							allPolylines.push(turf.polygon([polyline]));
-							layers.push(L.polygon(polyline.map((lnglat) => [lnglat[1], lnglat[0]]), {
+							layers.push(L.polygon(L.GeoJSON.coordsToLatLngs(polyline), {
 								'color': feature['properties']['color'],
 								'fillOpacity': 0.5,
 								'stroke': true,
@@ -113,7 +113,7 @@
 							}));
 						}
 						if (label) {
-							layers.push(L.tooltip(L.PolyUtil.polygonCenter(mergedPolyline.map((lnglat) => [lnglat[1], lnglat[0]]), L.CRS.EPSG3857), {
+							layers.push(L.tooltip(L.PolyUtil.polygonCenter(L.GeoJSON.coordsToLatLngs(mergedPolyline), L.CRS.EPSG3857), {
 								'content': feature['properties']['name'],
 								'className': 'floating ' + label,
 								'direction': 'center',
@@ -207,7 +207,7 @@
 				var desc;
 				loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outFields=servico%2Cdirecao&outSR=4326&f=pjson', (feature) => {
 					const path = feature['geometry']['paths'][0];
-					polylines[servico].push(L.polyline(path.map((lnglat) => [lnglat[1], lnglat[0]]), {'color': polylineColor}).bindPopup(servico).addTo(map));
+					polylines[servico].push(L.polyline(L.GeoJSON.coordsToLatLngs(path), {'color': polylineColor}).bindPopup(servico).addTo(map));
 
 					if (feature['attributes']['direcao']) {
 						circular = false;
