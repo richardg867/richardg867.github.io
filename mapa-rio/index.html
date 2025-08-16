@@ -99,6 +99,7 @@
 					}
 				});
 				const layerControl = new ExtendedLayers({}, {}, {'moveFrom': '#extension', 'collapsed': false}).addTo(map);
+				map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]);
 
 				var legend;
 				var legendAvoidLayers = [];
@@ -156,7 +157,6 @@
 				Promise.resolve()
 					.then(() => geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', areas, 'area'))
 					.then((group) => new Promise((resolve) => {
-						map.fitBounds([[-22.775, -43.797], [-23.077, -43.149]]);
 						legendAvoidLayers.push(group.addTo(map));
 						resolve();
 					}))
