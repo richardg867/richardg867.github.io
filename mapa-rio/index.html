@@ -121,19 +121,19 @@
 					loadGeoJson(url, (feature) => {
 						var mergedPolyline = [];
 						var allPolylines = obj[feature['properties']['name']] = [];
-						for (const polyline of getPolylines(feature)) {
+						getPolylines(feature).forEach((polyline) => {
 							if (label)
 								mergedPolyline = mergedPolyline.concat(polyline);
 							allPolylines.push(turf.polygon([polyline]));
 							if (!feature['properties']['color'])
-								continue;
+								return;
 							layers.push(L.polygon(L.GeoJSON.coordsToLatLngs(polyline), {
 								'color': feature['properties']['color'],
 								'fillOpacity': 0.5,
 								'stroke': true,
 								'interactive': false
 							}));
-						}
+						});
 						if (label) {
 							layers.push(L.tooltip(L.PolyUtil.polygonCenter(L.GeoJSON.coordsToLatLngs(mergedPolyline), L.CRS.EPSG3857), {
 								'content': feature['properties']['name'],
@@ -144,7 +144,7 @@
 						}
 					}, (err) => {
 						if (!err && layers.length) {
-							const group = L.layerGroup(layers)
+							const group = L.layerGroup(layers);
 							group.on('add', () => Object.keys(polylines).forEach((servico) => polylines[servico].forEach((polyline) => polyline.bringToFront())));
 							layerControl.addOverlay(group, name);
 							resolve(group);
@@ -222,7 +222,7 @@
 				if (feature['geometry']['type'] == 'Polygon')
 					return feature['geometry']['coordinates'];
 				else if (feature['geometry']['type'] == 'MultiPolygon')
-					return feature['geometry']['coordinates'].map((x) => x[0]);
+					return feature['geometry']['coordinates'].map((polyline) => polyline[0]);
 				else
 					return [];
 			}
@@ -246,26 +246,25 @@
 						const endPos = turf.point(path[path.length - 1]);
 						console.log(endPos);
 						var startArea, endArea;
-						for (const loteL in lotesL) {
-							for (var polyline of lotesL[loteL]) {
-								console.log(loteL, lotesL[loteL], polyline);
+						Object.keys(lotesL).forEach((loteL) => {
+							lotesL[loteL].forEach((polyline) => {
 								if (turf.booleanPointInPolygon(startPos, polyline))
 									startArea = loteL;
 								if (turf.booleanPointInPolygon(endPos, polyline))
 									endArea = loteL;
-							}
-						}
+							});
+						});
 						if (startArea == endArea) {
 							desc = 'Local ' + startArea;
 						} else {
-							for (const loteE in lotesE) {
-								for (var polyline of lotesE[loteE]) {
+							Object.keys(lotesE).forEach((loteE) => {
+								lotesE[loteE].forEach((polyline) => {
 									if (turf.booleanPointInPolygon(startPos, polyline))
 										startArea = loteE;
 									if (turf.booleanPointInPolygon(endPos, polyline))
 										endArea = loteE;
-								}
-							}
+								});
+							});
 							desc = 'Estrutural ' + startArea + ' x ' + endArea;
 						}
 					}
@@ -326,11 +325,11 @@
 			</div>
 		</div>
 		<div id="legend">
-			<b style="color: #ef1c41">Fase 1</b> (04/2025 - 04/2026)<br />
-			<b style="color: #ffab18">Fase 2</b> (11/2025 - 09/2026)<br />
-			<b style="color: #94a34b">Fase 3</b> (04/2026 - 04/2027)<br />
-			<b style="color: #358dcf">Fase 4</b> (11/2026 - 11/2027)<br />
-			<b style="color: #9c9c9c">Fase final</b> (09/2027 - 08/2028)
+			<b style="color: #ef1c41;">Fase 1</b> (04/2025 - 04/2026)<br />
+			<b style="color: #ffab18;">Fase 2</b> (11/2025 - 09/2026)<br />
+			<b style="color: #94a34b;">Fase 3</b> (04/2026 - 04/2027)<br />
+			<b style="color: #358dcf;">Fase 4</b> (11/2026 - 11/2027)<br />
+			<b style="color: #9c9c9c;">Fase final</b> (09/2027 - 08/2028)
 		</div>
 	</body>
 </html>
