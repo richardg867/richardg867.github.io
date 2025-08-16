@@ -125,6 +125,8 @@
 							if (label)
 								mergedPolyline = mergedPolyline.concat(polyline);
 							allPolylines.push(turf.polygon([polyline]));
+							if (!feature['properties']['color'])
+								continue;
 							layers.push(L.polygon(L.GeoJSON.coordsToLatLngs(polyline), {
 								'color': feature['properties']['color'],
 								'fillOpacity': 0.5,
