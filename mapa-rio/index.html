@@ -235,7 +235,7 @@
 				polylines[servico] = [];
 				var circular = true;
 				var desc;
-				loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outFields=servico%2Cdirecao&outSR=4326&f=pjson', (feature) => {
+				loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outFields=direcao&outSR=4326&f=pjson', (feature) => {
 					const path = feature['geometry']['paths'][0];
 					polylines[servico].push(L.polyline(L.GeoJSON.coordsToLatLngs(path), {'color': polylineColor}).bindPopup(servico).addTo(map));
 
