@@ -157,7 +157,7 @@
 				if (!Promise.allSettled)
 					Promise.allSettled = (promises) => Promise.all(promises.map((promise) => promise.then((value) => ({'status': 'fulfilled', 'value': value})).catch((err) => ({'status': 'rejected', 'reason': err}))));
 				Promise.allSettled([
-					geoJsonOverlay('/mapa-rio/areas.geojson', 'Áreas', areas, 'area')
+					geoJsonOverlay('/mapa-rio/areas.geojson?v=20250822', 'Áreas', areas, 'area')
 						.then((group) => new Promise((resolve) => {
 							resolve(group.addTo(map));
 							legendAvoidLayers.push(group);
