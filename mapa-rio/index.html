@@ -162,12 +162,12 @@
 							resolve(group.addTo(map));
 							legendAvoidLayers.push(group);
 						})),
-					geoJsonOverlay('/mapa-rio/lotes-e.geojson', 'Lotes Estruturais', lotesE, 'lote')
+					geoJsonOverlay('/mapa-rio/lotes-e.geojson?v=20250826', 'Lotes Estruturais', lotesE, 'lote')
 						.then((group) => new Promise((resolve) => {
 							resolve(group);
 							legendLayers.push(group);
 						})),
-					geoJsonOverlay('/mapa-rio/lotes-l.geojson', 'Lotes Locais', lotesL, 'lote')
+					geoJsonOverlay('/mapa-rio/lotes-l.geojson?v=20250826', 'Lotes Locais', lotesL, 'lote')
 						.then((group) => new Promise((resolve) => {
 							resolve(group);
 							legendLayers.push(group);
