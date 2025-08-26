@@ -136,7 +136,7 @@
 								'interactive': false
 							}));
 						});
-						if (label) {
+						if (label && feature['properties']['color']) {
 							layers.push(L.tooltip(L.PolyUtil.polygonCenter(L.GeoJSON.coordsToLatLngs(mergedPolyline), L.CRS.EPSG3857), {
 								'content': feature['properties']['name'],
 								'className': 'floating ' + label,
