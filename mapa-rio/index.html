@@ -118,45 +118,7 @@
 				map.on('overlayadd', updateLegend);
 				map.on('overlayremove', updateLegend);
 
-				const geoJsonOverlay = (url, name, obj, label) => new Promise((resolve) => {
-					var layers = [];
-					loadGeoJson(url, (feature) => {
-						var mergedPolyline = [];
-						var allPolylines = obj[feature['properties']['name']] = [];
-						getPolylines(feature).forEach((polyline) => {
-							if (label)
-								mergedPolyline = mergedPolyline.concat(polyline);
-							allPolylines.push(turf.polygon([polyline]));
-							if (!feature['properties']['color'])
-								return;
-							layers.push(L.polygon(L.GeoJSON.coordsToLatLngs(polyline), {
-								'color': feature['properties']['color'],
-								'fillOpacity': 0.5,
-								'stroke': true,
-								'interactive': false
-							}));
-						});
-						if (label && feature['properties']['color']) {
-							layers.push(L.tooltip(L.PolyUtil.polygonCenter(L.GeoJSON.coordsToLatLngs(mergedPolyline), L.CRS.EPSG3857), {
-								'content': feature['properties']['name'],
-								'className': 'floating ' + label,
-								'direction': 'center',
-								'permanent': true
-							}));
-						}
-					}, (err) => {
-						if (!err && layers.length) {
-							const group = L.layerGroup(layers, {'name': name});
-							group.on('add', () => Object.keys(polylines).forEach((servico) => polylines[servico].forEach((polyline) => polyline.bringToFront())));
-							resolve(group);
-						} else {
-							resolve();
-						}
-					});
-				});
-				if (!Promise.allSettled)
-					Promise.allSettled = (promises) => Promise.all(promises.map((promise) => promise.then((value) => ({'status': 'fulfilled', 'value': value})).catch((err) => ({'status': 'rejected', 'reason': err}))));
-				Promise.allSettled([
+				allSequential([
 					geoJsonOverlay('/mapa-rio/areas.geojson?v=20250822', 'Áreas', areas, 'area')
 						.then((group) => new Promise((resolve) => {
 							resolve(group.addTo(map));
@@ -203,12 +165,64 @@
 								resolve();
 						});
 					})
-				]).then((results) => {
-					results.forEach((result) => result.value && layerControl.addOverlay(result.value, result.value.options['name']));
+				], (result) => result.value && layerControl.addOverlay(result.value, result.value.options['name'])).then((results) => {
 					document.querySelector('#loading').style.display = 'none';
 					document.querySelector('form').style.display = 'block';
 				});
 			});
+			function allSequential(promises, result) {
+				return new Promise((resolve) => {
+					const results = [];
+					var resolved = 0;
+					promises.forEach((promise, i) => {
+						promises[i] = promise
+							.then((value) => results[i] = ({'status': 'fulfilled', 'value': value}), (err) => results[i] = ({'status': 'rejected', 'reason': err}))
+							.then(() => {
+								for (; results[resolved]; resolved++)
+									result(results[resolved]);
+							});
+					});
+					Promise.all(promises).then(() => resolve(results));
+				});
+			}
+			function geoJsonOverlay(url, name, obj, label) {
+				return new Promise((resolve) => {
+					var layers = [];
+					loadGeoJson(url, (feature) => {
+						var mergedPolyline = [];
+						var allPolylines = obj[feature['properties']['name']] = [];
+						getPolylines(feature).forEach((polyline) => {
+							if (label)
+								mergedPolyline = mergedPolyline.concat(polyline);
+							allPolylines.push(turf.polygon([polyline]));
+							if (!feature['properties']['color'])
+								return;
+							layers.push(L.polygon(L.GeoJSON.coordsToLatLngs(polyline), {
+								'color': feature['properties']['color'],
+								'fillOpacity': 0.5,
+								'stroke': true,
+								'interactive': false
+							}));
+						});
+						if (label && feature['properties']['color']) {
+							layers.push(L.tooltip(L.PolyUtil.polygonCenter(L.GeoJSON.coordsToLatLngs(mergedPolyline), L.CRS.EPSG3857), {
+								'content': feature['properties']['name'],
+								'className': 'floating ' + label,
+								'direction': 'center',
+								'permanent': true
+							}));
+						}
+					}, (err) => {
+						if (!err && layers.length) {
+							const group = L.layerGroup(layers, {'name': name});
+							group.on('add', () => Object.keys(polylines).forEach((servico) => polylines[servico].forEach((polyline) => polyline.bringToFront())));
+							resolve(group);
+						} else {
+							resolve();
+						}
+					});
+				});
+			}
 			function loadGeoJson(url, feature, finish) {
 				window.fetch(url)
 					.then((response) => response.json())
