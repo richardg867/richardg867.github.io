@@ -229,6 +229,8 @@
 					.then((data) => {
 						if (data['features'] && data['features'].length)
 							data['features'].forEach(feature);
+						else if (data['error'])
+							throw data['error']['message'];
 						finish();
 					})
 					.catch((err) => {
