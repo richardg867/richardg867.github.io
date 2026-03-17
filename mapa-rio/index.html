@@ -259,7 +259,7 @@
 					const path = feature['geometry']['paths'][0];
 					polylines[servico].push(L.polyline(L.GeoJSON.coordsToLatLngs(path), {'color': polylineColor}).bindPopup(servico).addTo(map));
 
-					if (feature['attributes']['direcao']) {
+					if (parseInt(feature['attributes']['direcao'])) {
 						circular = false;
 					} else {
 						const startPos = turf.point(path[0]);
