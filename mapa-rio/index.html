@@ -299,7 +299,7 @@
 				loadGeoJson('/mapa-rio/new/' + encodeURIComponent(servico) + '.geojson', parseFeature, (err) => {
 					if (!err)
 						return onLoaded();
-					loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_da_rede_de_transporte_p%C3%BAblico_por_%C3%B4nibus_%28SPPO%29/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outFields=direcao&outSR=4326&f=pjson', parseFeature, (err) => {
+					loadGeoJson('https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Hosted/Itiner%C3%A1rios_%C3%94nibus_Municipais_visualiza%C3%A7%C3%A3o/FeatureServer/1/query?where=' + encodeURIComponent('servico=\'' + servico + '\'') + '&outFields=direcao&outSR=4326&f=pjson', parseFeature, (err) => {
 						if (err) {
 							delete polylines[servico];
 							alert('Erro ao carregar linha ' + servico);
