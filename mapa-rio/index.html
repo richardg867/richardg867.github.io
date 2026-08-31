@@ -255,11 +255,15 @@
 				polylines[servico] = [];
 				var circular = true;
 				var desc;
+				var lote;
 				const parseFeature = (feature) => {
 					const path = feature['geometry']['paths'][0];
 					polylines[servico].push(L.polyline(L.GeoJSON.coordsToLatLngs(path), {'color': polylineColor}).bindPopup(servico).addTo(map));
 
-					if (parseInt(feature['attributes']['direcao'])) {
+					lote = lote || feature['attributes']['lote'];
+					if (lote) {
+						return;
+					} else if (parseInt(feature['attributes']['direcao'])) {
 						circular = false;
 					} else {
 						const startPos = turf.point(path[0]);
@@ -289,7 +293,9 @@
 					}
 				};
 				const onLoaded = () => {
-					if (circular)
+					if (lote)
+						desc = lote;
+					else if (circular)
 						desc = desc.replace(/^Local /, 'Circular ');
 
 					const container = document.querySelector('#linhas');
